@@ -11,7 +11,7 @@ set(CMAKE_C_STANDARD 99)
 add_subdirectory(deps/raylib)
 
 # Incluindo diretório de headers do Raylib e do projeto
-include_directories(deps/raylib/src includes)
+include_directories(${CMAKE_SOURCE_DIR}/deps/raylib/src ${CMAKE_SOURCE_DIR}/includes)
 
 # Adicionando o executável com os arquivos fonte
 add_executable(projeto src/main.c)

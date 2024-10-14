@@ -6,8 +6,8 @@ def build_project():
     build_dir = "build"
 
     # Remove o diretório "build" se ele existir
-    #if os.path.exists(build_dir):
-    #    shutil.rmtree(build_dir)
+    if os.path.exists(build_dir):
+        shutil.rmtree(build_dir)
     
     # Cria o diretório "build"
     os.makedirs(build_dir, exist_ok=True)

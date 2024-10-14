@@ -1,0 +1,53 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/cpp
+{
+	"name": "C",
+	"image": "mcr.microsoft.com/devcontainers/cpp:1-ubuntu-24.04",
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// "forwardPorts": [],
+	// Use 'postCreateCommand' to run commands after the container is created.
+	"postCreateCommand": "sh .devcontainer/setup.sh",
+	"waitFor": "postCreateCommand",
+	// Configure tool-specific properties.
+	"customizations": {
+		"vscode": {
+			"settings": {
+				"files.eol": "\n",
+				"cmake.enableAutomaticKitScan": false,
+				"clangd.path": "/usr/bin/clangd",
+				"clangd.arguments": [
+					"--background-index",
+					"--clang-tidy",
+					"--suggest-missing-includes",
+					"--completion-style=detailed",
+					"--cross-file-rename",
+					"--header-insertion=never",
+					"-I${workspaceFolder}/deps/raylib/src" // Inclui o caminho dos headers da Raylib
+				],
+				"C_Cpp.default.compilerPath": "/usr/bin/clang",
+				"C_Cpp.intelliSenseEngine": "disabled",
+				"C_Cpp.autocomplete": "disabled",
+				"C_Cpp.errorSquiggles": "disabled",
+				"C_Cpp.default.cStandard": "c17",
+				"C_Cpp.default.cppStandard": "c++20",
+				"files.associations": {
+					"*.h": "c"
+				},
+				"editor.formatOnSave": true,
+				"C_Cpp.formatting": "clangFormat",
+				"C_Cpp.default.includePath": [
+					"${workspaceFolder}/includes",
+					"${workspaceFolder}/deps/raylib/src", // Inclui o caminho correto para a Raylib
+					"${workspaceFolder}/**",
+					"/usr/include",
+					"/usr/local/include"
+				]
+			},
+			"extensions": [
+				"llvm-vs-code-extensions.vscode-clangd"
+			]
+		}
+	}
+	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
+	// "remoteUser": "root"
+}

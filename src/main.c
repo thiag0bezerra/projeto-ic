@@ -1,174 +1,107 @@
-/*******************************************************************************************
-*
-*   raylib [core] example - 3d cmaera split screen
-*
-*   Example originally created with raylib 3.7, last time updated with raylib 4.0
-*
-*   Example contributed by Jeffery Myers (@JeffM2501) and reviewed by Ramon Santamaria (@raysan5)
-*
-*   Example licensed under an unmodified zlib/libpng license, which is an OSI-certified,
-*   BSD-like license that allows static linking with closed source software
-*
-*   Copyright (c) 2021-2024 Jeffery Myers (@JeffM2501)
-*
-********************************************************************************************/
-
 #include "raylib.h"
+#include "rcamera.h"
+#include <stdlib.h>
 
-//------------------------------------------------------------------------------------
-// Program main entry point
-//------------------------------------------------------------------------------------
+#define MAX_COLUMNS 20
+#define MAX_NPCS 5
+
+typedef struct NPC {
+    Vector3 position;
+    float speed;
+    int direction;  // 0 = move along X, 1 = move along Z
+} NPC;
+
+void UpdateNPCs(NPC* npcs, int count);
+
 int main(void)
 {
     // Initialization
-    //--------------------------------------------------------------------------------------
     const int screenWidth = 800;
     const int screenHeight = 450;
 
-    InitWindow(screenWidth, screenHeight, "raylib [core] example - 3d camera split screen");
+    InitWindow(screenWidth, screenHeight, "Combined Game");
 
-    // Setup player 1 camera and screen
-    Camera cameraPlayer1 = { 0 };
-    cameraPlayer1.fovy = 45.0f;
-    cameraPlayer1.up.y = 1.0f;
-    cameraPlayer1.target.y = 1.0f;
-    cameraPlayer1.position.z = -3.0f;
-    cameraPlayer1.position.y = 1.0f;
+    // Define the camera (First-person)
+    Camera camera = { 0 };
+    camera.position = (Vector3){ 0.0f, 2.0f, 4.0f };
+    camera.target = (Vector3){ 0.0f, 2.0f, 0.0f };
+    camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };
+    camera.fovy = 60.0f;
+    camera.projection = CAMERA_PERSPECTIVE;
 
-    RenderTexture screenPlayer1 = LoadRenderTexture(screenWidth/2, screenHeight);
+    int cameraMode = CAMERA_FIRST_PERSON;
 
-    // Setup player two camera and screen
-    Camera cameraPlayer2 = { 0 };
-    cameraPlayer2.fovy = 45.0f;
-    cameraPlayer2.up.y = 1.0f;
-    cameraPlayer2.target.y = 3.0f;
-    cameraPlayer2.position.x = -3.0f;
-    cameraPlayer2.position.y = 3.0f;
+    // Columns (Random objects)
+    float heights[MAX_COLUMNS];
+    Vector3 positions[MAX_COLUMNS];
+    Color colors[MAX_COLUMNS];
 
-    RenderTexture screenPlayer2 = LoadRenderTexture(screenWidth / 2, screenHeight);
+    for (int i = 0; i < MAX_COLUMNS; i++) {
+        heights[i] = (float)GetRandomValue(1, 12);
+        positions[i] = (Vector3){ (float)GetRandomValue(-15, 15), heights[i] / 2.0f, (float)GetRandomValue(-15, 15) };
+        colors[i] = (Color){ GetRandomValue(20, 255), GetRandomValue(10, 55), 30, 255 };
+    }
 
-    // Build a flipped rectangle the size of the split view to use for drawing later
-    Rectangle splitScreenRect = { 0.0f, 0.0f, (float)screenPlayer1.texture.width, (float)-screenPlayer1.texture.height };
-    
-    // Grid data
-    int count = 5;
-    float spacing = 4;
+    // NPCs (Random movement)
+    NPC npcs[MAX_NPCS];
+    for (int i = 0; i < MAX_NPCS; i++) {
+        npcs[i].position = (Vector3){ (float)GetRandomValue(-15, 15), 1.0f, (float)GetRandomValue(-15, 15) };
+        npcs[i].speed = (float)GetRandomValue(1, 3);
+        npcs[i].direction = GetRandomValue(0, 1);
+    }
 
-    SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
-    //--------------------------------------------------------------------------------------
+    DisableCursor();
+    SetTargetFPS(60);
 
     // Main game loop
-    while (!WindowShouldClose())    // Detect window close button or ESC key
-    {
-        // Update
-        //----------------------------------------------------------------------------------
-        // If anyone moves this frame, how far will they move based on the time since the last frame
-        // this moves thigns at 10 world units per second, regardless of the actual FPS
-        float offsetThisFrame = 10.0f*GetFrameTime();
-
-        // Move Player1 forward and backwards (no turning)
-        if (IsKeyDown(KEY_W))
-        {
-            cameraPlayer1.position.z += offsetThisFrame;
-            cameraPlayer1.target.z += offsetThisFrame;
-        }
-        else if (IsKeyDown(KEY_S))
-        {
-            cameraPlayer1.position.z -= offsetThisFrame;
-            cameraPlayer1.target.z -= offsetThisFrame;
-        }
-
-        // Move Player2 forward and backwards (no turning)
-        if (IsKeyDown(KEY_UP))
-        {
-            cameraPlayer2.position.x += offsetThisFrame;
-            cameraPlayer2.target.x += offsetThisFrame;
-        }
-        else if (IsKeyDown(KEY_DOWN))
-        {
-            cameraPlayer2.position.x -= offsetThisFrame;
-            cameraPlayer2.target.x -= offsetThisFrame;
-        }
-        //----------------------------------------------------------------------------------
+    while (!WindowShouldClose()) {
+        // Update camera and NPCs
+        UpdateCamera(&camera, cameraMode);
+        UpdateNPCs(npcs, MAX_NPCS);
 
         // Draw
-        //----------------------------------------------------------------------------------
-        // Draw Player1 view to the render texture
-        BeginTextureMode(screenPlayer1);
-            ClearBackground(SKYBLUE);
-            
-            BeginMode3D(cameraPlayer1);
-            
-                // Draw scene: grid of cube trees on a plane to make a "world"
-                DrawPlane((Vector3){ 0, 0, 0 }, (Vector2){ 50, 50 }, BEIGE); // Simple world plane
-
-                for (float x = -count*spacing; x <= count*spacing; x += spacing)
-                {
-                    for (float z = -count*spacing; z <= count*spacing; z += spacing)
-                    {
-                        DrawCube((Vector3) { x, 1.5f, z }, 1, 1, 1, LIME);
-                        DrawCube((Vector3) { x, 0.5f, z }, 0.25f, 1, 0.25f, BROWN);
-                    }
-                }
-
-                // Draw a cube at each player's position
-                DrawCube(cameraPlayer1.position, 1, 1, 1, RED);
-                DrawCube(cameraPlayer2.position, 1, 1, 1, BLUE);
-                
-            EndMode3D();
-            
-            DrawRectangle(0, 0, GetScreenWidth()/2, 40, Fade(RAYWHITE, 0.8f));
-            DrawText("PLAYER1: W/S to move", 10, 10, 20, MAROON);
-            
-        EndTextureMode();
-
-        // Draw Player2 view to the render texture
-        BeginTextureMode(screenPlayer2);
-            ClearBackground(SKYBLUE);
-            
-            BeginMode3D(cameraPlayer2);
-            
-                // Draw scene: grid of cube trees on a plane to make a "world"
-                DrawPlane((Vector3){ 0, 0, 0 }, (Vector2){ 50, 50 }, BEIGE); // Simple world plane
-
-                for (float x = -count*spacing; x <= count*spacing; x += spacing)
-                {
-                    for (float z = -count*spacing; z <= count*spacing; z += spacing)
-                    {
-                        DrawCube((Vector3) { x, 1.5f, z }, 1, 1, 1, LIME);
-                        DrawCube((Vector3) { x, 0.5f, z }, 0.25f, 1, 0.25f, BROWN);
-                    }
-                }
-
-                // Draw a cube at each player's position
-                DrawCube(cameraPlayer1.position, 1, 1, 1, RED);
-                DrawCube(cameraPlayer2.position, 1, 1, 1, BLUE);
-                
-            EndMode3D();
-            
-            DrawRectangle(0, 0, GetScreenWidth()/2, 40, Fade(RAYWHITE, 0.8f));
-            DrawText("PLAYER2: UP/DOWN to move", 10, 10, 20, DARKBLUE);
-            
-        EndTextureMode();
-
-        // Draw both views render textures to the screen side by side
         BeginDrawing();
-            ClearBackground(BLACK);
-            
-            DrawTextureRec(screenPlayer1.texture, splitScreenRect, (Vector2){ 0, 0 }, WHITE);
-            DrawTextureRec(screenPlayer2.texture, splitScreenRect, (Vector2){ screenWidth/2.0f, 0 }, WHITE);
-            
-            DrawRectangle(GetScreenWidth()/2 - 2, 0, 4, GetScreenHeight(), LIGHTGRAY);
+        ClearBackground(RAYWHITE);
+
+        BeginMode3D(camera);
+        DrawPlane((Vector3){ 0.0f, 0.0f, 0.0f }, (Vector2){ 32.0f, 32.0f }, LIGHTGRAY); // Ground
+
+        // Draw columns
+        for (int i = 0; i < MAX_COLUMNS; i++) {
+            DrawCube(positions[i], 2.0f, heights[i], 2.0f, colors[i]);
+            DrawCubeWires(positions[i], 2.0f, heights[i], 2.0f, MAROON);
+        }
+
+        // Draw NPCs
+        for (int i = 0; i < MAX_NPCS; i++) {
+            DrawCube(npcs[i].position, 1.0f, 1.0f, 1.0f, RED);
+            DrawCubeWires(npcs[i].position, 1.0f, 1.0f, 1.0f, DARKGRAY);
+        }
+
+        EndMode3D();
+
+        DrawText("Move: W, A, S, D", 10, 10, 20, BLACK);
+        DrawText("NPCs move randomly", 10, 40, 20, BLACK);
+        DrawFPS(10, 70);
+
         EndDrawing();
     }
 
     // De-Initialization
-    //--------------------------------------------------------------------------------------
-    UnloadRenderTexture(screenPlayer1); // Unload render texture
-    UnloadRenderTexture(screenPlayer2); // Unload render texture
-
-    CloseWindow();                      // Close window and OpenGL context
-    //--------------------------------------------------------------------------------------
+    CloseWindow();
 
     return 0;
+}
+
+void UpdateNPCs(NPC* npcs, int count)
+{
+    for (int i = 0; i < count; i++) {
+        if (npcs[i].direction == 0) {
+            npcs[i].position.x += npcs[i].speed * GetFrameTime();
+            if (npcs[i].position.x > 15 || npcs[i].position.x < -15) npcs[i].speed *= -1;
+        } else {
+            npcs[i].position.z += npcs[i].speed * GetFrameTime();
+            if (npcs[i].position.z > 15 || npcs[i].position.z < -15) npcs[i].speed *= -1;
+        }
+    }
 }

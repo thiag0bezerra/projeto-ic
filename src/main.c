@@ -1,17 +1,11 @@
-/*******************************************************************************************
-*
-*   raylib - classic game: asteroids
-*
-*   Sample game developed by Ian Eito, Albert Martos and Ramon Santamaria
-*
-*   This game has been created using raylib v1.3 (www.raylib.com)
-*   raylib is licensed under an unmodified zlib/libpng license (View raylib.h for details)
-*
-*   Copyright (c) 2015 Ramon Santamaria (@raysan5)
-*
-********************************************************************************************/
 
-#include "raylib.h"
+#define Font XlibFont  // Renomeia o 'Font' do Xlib para evitar conflito
+
+#include <X11/Xlib.h>  // Inclui o Xlib
+
+#undef Font  // Remove a redefinição para evitar afetar o restante do código
+
+#include <raylib.h>  // Inclui a raylib sem conflitos
 
 #include <math.h>
 
@@ -20,19 +14,19 @@
 #endif
 
 //----------------------------------------------------------------------------------
-// Some Defines
+// Definições
 //----------------------------------------------------------------------------------
 #define PLAYER_BASE_SIZE    20.0f
 #define PLAYER_SPEED        6.0f
 #define PLAYER_MAX_SHOOTS   10
 
-#define METEORS_SPEED       2
+#define METEORS_SPEED       6
 #define MAX_BIG_METEORS     4
 #define MAX_MEDIUM_METEORS  8
 #define MAX_SMALL_METEORS   16
 
 //----------------------------------------------------------------------------------
-// Types and Structures Definition
+// Estruturas de definição
 //----------------------------------------------------------------------------------
 typedef struct Player {
     Vector2 position;
@@ -62,16 +56,27 @@ typedef struct Meteor {
 } Meteor;
 
 //------------------------------------------------------------------------------------
-// Global Variables Declaration
+// Declaração de variáveis globais
 //------------------------------------------------------------------------------------
-static const int screenWidth = 800;
-static const int screenHeight = 450;
+static int screenWidth;
+static int screenHeight;
+Texture2D backgroundTexture;
+
+int screen(void) {
+    Display* display = XOpenDisplay(NULL);
+    int screen = DefaultScreen(display);
+    screenWidth = DisplayWidth(display, screen);   // Atribui o valor à variável global
+    screenHeight = DisplayHeight(display, screen); // Atribui o valor à variável global
+    
+    XCloseDisplay(display);  // Fecha o display após o uso
+    return 0;
+}
 
 static bool gameOver = false;
 static bool pause = false;
 static bool victory = false;
 
-// NOTE: Defined triangle is isosceles with common angles of 70 degrees.
+// Define um triangulo de 70 graus para ser a nave
 static float shipHeight = 0.0f;
 
 static Player player = { 0 };
@@ -85,22 +90,23 @@ static int smallMeteorsCount = 0;
 static int destroyedMeteorsCount = 0;
 
 //------------------------------------------------------------------------------------
-// Module Functions Declaration (local)
+// Declaração dos modulos
 //------------------------------------------------------------------------------------
-static void InitGame(void);         // Initialize game
-static void UpdateGame(void);       // Update game (one frame)
-static void DrawGame(void);         // Draw game (one frame)
-static void UnloadGame(void);       // Unload game
-static void UpdateDrawFrame(void);  // Update and Draw (one frame)
+static void InitGame(void);         // Inicializa o jogo
+static void UpdateGame(void);       // Atualiza o jogo a cada frame
+static void DrawGame(void);         // Desenha o jogo a cada frame
+static void UnloadGame(void);       // Descarrega o jogo
+static void UpdateDrawFrame(void);  // Atualiza e desenha a cada frame
 
 //------------------------------------------------------------------------------------
-// Program main entry point
+// função principal
 //------------------------------------------------------------------------------------
 int main(void)
 {
-    // Initialization (Note windowTitle is unused on Android)
+    screen();
+    // Inicialização da janela
     //---------------------------------------------------------
-    InitWindow(screenWidth, screenHeight, "classic game: asteroids");
+    InitWindow(screenWidth, screenHeight, "classic game: asteroid");
 
     InitGame();
 
@@ -110,30 +116,30 @@ int main(void)
     SetTargetFPS(60);
     //--------------------------------------------------------------------------------------
 
-    // Main game loop
-    while (!WindowShouldClose())    // Detect window close button or ESC key
+    // Loop principal do jogo
+    while (!WindowShouldClose())    // Detecta se o 'Esc' foi clicado para sair do jogo
     {
-        // Update and Draw
+        // Atualiza e desenha
         //----------------------------------------------------------------------------------
         UpdateDrawFrame();
         //----------------------------------------------------------------------------------
     }
 #endif
-    // De-Initialization
+    
     //--------------------------------------------------------------------------------------
-    UnloadGame();         // Unload loaded data (textures, sounds, models...)
+    UnloadGame();         // Descarregamento das informações de sons e texturas
 
-    CloseWindow();        // Close window and OpenGL context
+    CloseWindow();        // Fecha a janela
     //--------------------------------------------------------------------------------------
 
     return 0;
 }
 
 //------------------------------------------------------------------------------------
-// Module Functions Definitions (local)
+// Definição dos modulos locais
 //------------------------------------------------------------------------------------
 
-// Initialize game variables
+// Inicializar as variáveis do jogo
 void InitGame(void)
 {
     int posx, posy;
@@ -142,9 +148,11 @@ void InitGame(void)
     victory = false;
     pause = false;
 
+    backgroundTexture = LoadTexture("assets/universe.png");
+
     shipHeight = (PLAYER_BASE_SIZE/2)/tanf(20*DEG2RAD);
 
-    // Initialization player
+    // Inicialização do jogador
     player.position = (Vector2){screenWidth/2, screenHeight/2 - shipHeight/2};
     player.speed = (Vector2){0, 0};
     player.acceleration = 0;
@@ -154,7 +162,7 @@ void InitGame(void)
 
     destroyedMeteorsCount = 0;
 
-    // Initialization shoot
+    // Inicialização do tiro
     for (int i = 0; i < PLAYER_MAX_SHOOTS; i++)
     {
         shoot[i].position = (Vector2){0, 0};
@@ -229,7 +237,7 @@ void InitGame(void)
     smallMeteorsCount = 0;
 }
 
-// Update game (one frame)
+// Atualização do jogo
 void UpdateGame(void)
 {
     if (!gameOver)
@@ -238,15 +246,15 @@ void UpdateGame(void)
 
         if (!pause)
         {
-            // Player logic: rotation
+            // Logica do movimento do jogador
             if (IsKeyDown(KEY_LEFT)) player.rotation -= 5;
             if (IsKeyDown(KEY_RIGHT)) player.rotation += 5;
 
-            // Player logic: speed
+            // Logica da velocidade do jogador
             player.speed.x = sin(player.rotation*DEG2RAD)*PLAYER_SPEED;
             player.speed.y = cos(player.rotation*DEG2RAD)*PLAYER_SPEED;
 
-            // Player logic: acceleration
+            // Aceleração do jogador
             if (IsKeyDown(KEY_UP))
             {
                 if (player.acceleration < 1) player.acceleration += 0.04f;
@@ -262,17 +270,17 @@ void UpdateGame(void)
                 else if (player.acceleration < 0) player.acceleration = 0;
             }
 
-            // Player logic: movement
+            // Movimentação
             player.position.x += (player.speed.x*player.acceleration);
             player.position.y -= (player.speed.y*player.acceleration);
 
-            // Collision logic: player vs walls
+            // Colisão
             if (player.position.x > screenWidth + shipHeight) player.position.x = -(shipHeight);
             else if (player.position.x < -(shipHeight)) player.position.x = screenWidth + shipHeight;
             if (player.position.y > (screenHeight + shipHeight)) player.position.y = -(shipHeight);
             else if (player.position.y < -(shipHeight)) player.position.y = screenHeight + shipHeight;
 
-            // Player shoot logic
+            // Tiro
             if (IsKeyPressed(KEY_SPACE))
             {
                 for (int i = 0; i < PLAYER_MAX_SHOOTS; i++)
@@ -289,22 +297,22 @@ void UpdateGame(void)
                 }
             }
 
-            // Shoot life timer
+            // Tempo de vida do tiro
             for (int i = 0; i < PLAYER_MAX_SHOOTS; i++)
             {
                 if (shoot[i].active) shoot[i].lifeSpawn++;
             }
 
-            // Shot logic
+            // logica do tiro
             for (int i = 0; i < PLAYER_MAX_SHOOTS; i++)
             {
                 if (shoot[i].active)
                 {
-                    // Movement
+                    // Movimento
                     shoot[i].position.x += shoot[i].speed.x;
                     shoot[i].position.y -= shoot[i].speed.y;
 
-                    // Collision logic: shoot vs walls
+                    // Colisão do tiro
                     if  (shoot[i].position.x > screenWidth + shoot[i].radius)
                     {
                         shoot[i].active = false;
@@ -326,7 +334,7 @@ void UpdateGame(void)
                         shoot[i].lifeSpawn = 0;
                     }
 
-                    // Life of shoot
+                    // Vida do tiro
                     if (shoot[i].lifeSpawn >= 60)
                     {
                         shoot[i].position = (Vector2){0, 0};
@@ -337,7 +345,7 @@ void UpdateGame(void)
                 }
             }
 
-            // Collision logic: player vs meteors
+            // Colisão com meteoros
             player.collider = (Vector3){player.position.x + sin(player.rotation*DEG2RAD)*(shipHeight/2.5f), player.position.y - cos(player.rotation*DEG2RAD)*(shipHeight/2.5f), 12};
 
             for (int a = 0; a < MAX_BIG_METEORS; a++)
@@ -355,16 +363,16 @@ void UpdateGame(void)
                 if (CheckCollisionCircles((Vector2){player.collider.x, player.collider.y}, player.collider.z, smallMeteor[a].position, smallMeteor[a].radius) && smallMeteor[a].active) gameOver = true;
             }
 
-            // Meteors logic: big meteors
+            // Meteoros grandes
             for (int i = 0; i < MAX_BIG_METEORS; i++)
             {
                 if (bigMeteor[i].active)
                 {
-                    // Movement
+                    // Movimento
                     bigMeteor[i].position.x += bigMeteor[i].speed.x;
                     bigMeteor[i].position.y += bigMeteor[i].speed.y;
 
-                    // Collision logic: meteor vs wall
+                    // Colisão meteoro e parede
                     if  (bigMeteor[i].position.x > screenWidth + bigMeteor[i].radius) bigMeteor[i].position.x = -(bigMeteor[i].radius);
                     else if (bigMeteor[i].position.x < 0 - bigMeteor[i].radius) bigMeteor[i].position.x = screenWidth + bigMeteor[i].radius;
                     if (bigMeteor[i].position.y > screenHeight + bigMeteor[i].radius) bigMeteor[i].position.y = -(bigMeteor[i].radius);
@@ -372,16 +380,16 @@ void UpdateGame(void)
                 }
             }
 
-            // Meteors logic: medium meteors
+            // Meteoro medio
             for (int i = 0; i < MAX_MEDIUM_METEORS; i++)
             {
                 if (mediumMeteor[i].active)
                 {
-                    // Movement
+                    // Movimento
                     mediumMeteor[i].position.x += mediumMeteor[i].speed.x;
                     mediumMeteor[i].position.y += mediumMeteor[i].speed.y;
 
-                    // Collision logic: meteor vs wall
+                    // Colisão meteoro e parede
                     if  (mediumMeteor[i].position.x > screenWidth + mediumMeteor[i].radius) mediumMeteor[i].position.x = -(mediumMeteor[i].radius);
                     else if (mediumMeteor[i].position.x < 0 - mediumMeteor[i].radius) mediumMeteor[i].position.x = screenWidth + mediumMeteor[i].radius;
                     if (mediumMeteor[i].position.y > screenHeight + mediumMeteor[i].radius) mediumMeteor[i].position.y = -(mediumMeteor[i].radius);
@@ -389,16 +397,16 @@ void UpdateGame(void)
                 }
             }
 
-            // Meteors logic: small meteors
+            // Meteoro pequeno
             for (int i = 0; i < MAX_SMALL_METEORS; i++)
             {
                 if (smallMeteor[i].active)
                 {
-                    // Movement
+                    // Movimento
                     smallMeteor[i].position.x += smallMeteor[i].speed.x;
                     smallMeteor[i].position.y += smallMeteor[i].speed.y;
 
-                    // Collision logic: meteor vs wall
+                    // Meteoro e parede
                     if  (smallMeteor[i].position.x > screenWidth + smallMeteor[i].radius) smallMeteor[i].position.x = -(smallMeteor[i].radius);
                     else if (smallMeteor[i].position.x < 0 - smallMeteor[i].radius) smallMeteor[i].position.x = screenWidth + smallMeteor[i].radius;
                     if (smallMeteor[i].position.y > screenHeight + smallMeteor[i].radius) smallMeteor[i].position.y = -(smallMeteor[i].radius);
@@ -406,7 +414,7 @@ void UpdateGame(void)
                 }
             }
 
-            // Collision logic: player-shoots vs meteors
+            // Colisão tiro meteoro
             for (int i = 0; i < PLAYER_MAX_SHOOTS; i++)
             {
                 if ((shoot[i].active))
@@ -502,62 +510,87 @@ void UpdateGame(void)
     }
 }
 
-// Draw game (one frame)
+// Desenhar jogo
 void DrawGame(void)
 {
     BeginDrawing();
 
         ClearBackground(RAYWHITE);
+        // Define a área de origem e destino da imagem
+        Rectangle source = { 0.0f, 0.0f, (float)backgroundTexture.width, (float)backgroundTexture.height };
+        Rectangle dest = { 0.0f, 0.0f, (float)screenWidth, (float)screenHeight };
+        Vector2 origin = { 0.0f, 0.0f };
+
+        // Desenha a imagem redimensionada para ocupar a tela inteira    
+        DrawTexturePro(backgroundTexture, source, dest, origin, 0.0f, WHITE);
 
         if (!gameOver)
         {
-            // Draw spaceship
+            // Desenha a nave
             Vector2 v1 = { player.position.x + sinf(player.rotation*DEG2RAD)*(shipHeight), player.position.y - cosf(player.rotation*DEG2RAD)*(shipHeight) };
             Vector2 v2 = { player.position.x - cosf(player.rotation*DEG2RAD)*(PLAYER_BASE_SIZE/2), player.position.y - sinf(player.rotation*DEG2RAD)*(PLAYER_BASE_SIZE/2) };
             Vector2 v3 = { player.position.x + cosf(player.rotation*DEG2RAD)*(PLAYER_BASE_SIZE/2), player.position.y + sinf(player.rotation*DEG2RAD)*(PLAYER_BASE_SIZE/2) };
             DrawTriangle(v1, v2, v3, MAROON);
 
-            // Draw meteors
+            // Desenha os meteoros
             for (int i = 0; i < MAX_BIG_METEORS; i++)
             {
-                if (bigMeteor[i].active) DrawCircleV(bigMeteor[i].position, bigMeteor[i].radius, DARKGRAY);
+                if (bigMeteor[i].active){
+                    Image image = LoadImage("assets/bigMeteor.png");     // Carregado na RAM
+                    Texture2D texture = LoadTextureFromImage(image);          // Convertido em textura (VRAM)
+                    UnloadImage(image);   // Descarregar da RAM
+                    DrawTexture(texture, bigMeteor[i].position.x - 45, bigMeteor[i].position.y - 45, WHITE);
+
+                } 
                 else DrawCircleV(bigMeteor[i].position, bigMeteor[i].radius, Fade(LIGHTGRAY, 0.3f));
             }
 
             for (int i = 0; i < MAX_MEDIUM_METEORS; i++)
             {
-                if (mediumMeteor[i].active) DrawCircleV(mediumMeteor[i].position, mediumMeteor[i].radius, GRAY);
+                if (mediumMeteor[i].active){
+                    Image image = LoadImage("assets/mediumMeteor.png");     // Carregado na RAM
+                    Texture2D texture = LoadTextureFromImage(image);          // Convertido em textura (VRAM)
+                    UnloadImage(image);   // Descarregar da RAM
+                    DrawTexture(texture, mediumMeteor[i].position.x - 20, mediumMeteor[i].position.y - 20, WHITE);
+                } 
                 else DrawCircleV(mediumMeteor[i].position, mediumMeteor[i].radius, Fade(LIGHTGRAY, 0.3f));
             }
 
             for (int i = 0; i < MAX_SMALL_METEORS; i++)
             {
-                if (smallMeteor[i].active) DrawCircleV(smallMeteor[i].position, smallMeteor[i].radius, GRAY);
+                if (smallMeteor[i].active){
+                    Image image = LoadImage("assets/smallMeteor.png");     // Carregado na RAM
+                    Texture2D texture = LoadTextureFromImage(image);          // Convertido em textura (VRAM)
+                    UnloadImage(image);   // Descarregar da RAM
+                    DrawTexture(texture, smallMeteor[i].position.x - 10, smallMeteor[i].position.y - 10, WHITE);
+                } 
                 else DrawCircleV(smallMeteor[i].position, smallMeteor[i].radius, Fade(LIGHTGRAY, 0.3f));
             }
 
-            // Draw shoot
+            // Desenhar tiro
             for (int i = 0; i < PLAYER_MAX_SHOOTS; i++)
             {
-                if (shoot[i].active) DrawCircleV(shoot[i].position, shoot[i].radius, BLACK);
+                if (shoot[i].active) DrawCircleV(shoot[i].position, shoot[i].radius, WHITE);
             }
 
             if (victory) DrawText("VICTORY", screenWidth/2 - MeasureText("VICTORY", 20)/2, screenHeight/2, 20, LIGHTGRAY);
 
             if (pause) DrawText("GAME PAUSED", screenWidth/2 - MeasureText("GAME PAUSED", 40)/2, screenHeight/2 - 40, 40, GRAY);
         }
-        else DrawText("PRESS [ENTER] TO PLAY AGAIN", GetScreenWidth()/2 - MeasureText("PRESS [ENTER] TO PLAY AGAIN", 20)/2, GetScreenHeight()/2 - 50, 20, GRAY);
-
+        else{
+            DrawText("PRESS [ENTER] TO PLAY AGAIN", GetScreenWidth()/2 - MeasureText("PRESS [ENTER] TO PLAY AGAIN", 20)/2, GetScreenHeight()/2 - 50, 20, GRAY);
+        }    
+                
     EndDrawing();
 }
 
-// Unload game variables
+// Descarregar variaveis
 void UnloadGame(void)
 {
-    // TODO: Unload all dynamic loaded data (textures, sounds, models...)
+    UnloadTexture(backgroundTexture);
 }
 
-// Update and Draw (one frame)
+// Atualizar os desenhos do jogo
 void UpdateDrawFrame(void)
 {
     UpdateGame();

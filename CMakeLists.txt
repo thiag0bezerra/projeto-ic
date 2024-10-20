@@ -4,6 +4,9 @@ cmake_minimum_required(VERSION 3.12)
 # Nome do projeto
 project(projeto_raylib C)
 
+# Encontrar a biblioteca X11
+find_package(X11 REQUIRED)
+
 # Definindo a versão C padrão
 set(CMAKE_C_STANDARD 99)
 
@@ -17,7 +20,7 @@ include_directories(${CMAKE_SOURCE_DIR}/deps/raylib/src ${CMAKE_SOURCE_DIR}/incl
 add_executable(projeto src/main.c)
 
 # Ligando o executável à Raylib
-target_link_libraries(projeto raylib)
+target_link_libraries(projeto raylib X11 m)
 
 # Para sistemas Unix, é necessário linkar com outras bibliotecas
 if(UNIX)

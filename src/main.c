@@ -139,7 +139,7 @@ int main(void)
 // Definição dos modulos locais
 //------------------------------------------------------------------------------------
 
-// Initialize game variables
+// Inicializar as variáveis do jogo
 void InitGame(void)
 {
     int posx, posy;

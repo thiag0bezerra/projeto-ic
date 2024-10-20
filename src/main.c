@@ -533,7 +533,8 @@ void DrawGame(void)
         Rectangle dest = { 0.0f, 0.0f, (float)screenWidth, (float)screenHeight };
         Vector2 origin = { 0.0f, 0.0f };
 
-        // Desenha a imagem redimensionada para ocupar a tela inteira    DrawTexturePro(backgroundTexture, source, dest, origin, 0.0f, WHITE);
+        // Desenha a imagem redimensionada para ocupar a tela inteira    
+        DrawTexturePro(backgroundTexture, source, dest, origin, 0.0f, WHITE);
 
         if (!gameOver)
         {
@@ -581,7 +582,7 @@ void DrawGame(void)
             // Draw shoot
             for (int i = 0; i < PLAYER_MAX_SHOOTS; i++)
             {
-                if (shoot[i].active) DrawCircleV(shoot[i].position, shoot[i].radius, BLACK);
+                if (shoot[i].active) DrawCircleV(shoot[i].position, shoot[i].radius, WHITE);
             }
 
             if (victory) DrawText("VICTORY", screenWidth/2 - MeasureText("VICTORY", 20)/2, screenHeight/2, 20, LIGHTGRAY);

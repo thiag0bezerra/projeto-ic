@@ -79,6 +79,16 @@ Aqui está a estrutura do projeto e uma breve explicação sobre cada diretório
    ./bin/projeto
    ```
 
+## Controles do Jogo
+
+Ao jogar, utilize as seguintes teclas para controlar a nave:
+
+- **Seta Esquerda/Direita**: Rotaciona a nave.
+- **Seta Cima**: Acelera a nave para frente.
+- **Seta Baixo**: Diminui a aceleração da nave.
+- **Barra de Espaço**: Dispara projéteis.
+- **Tecla P**: Pausa ou retoma o jogo.
+- **Tecla Enter**: Reinicia o jogo após game over.
 
 ## Contribuindo
 
@@ -98,4 +108,3 @@ Para contribuir com este projeto, siga as instruções abaixo:
    git push origin minha-feature
    ```
 5. **Abra um Pull Request**.
-
